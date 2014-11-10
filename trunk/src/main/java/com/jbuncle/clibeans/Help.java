@@ -57,16 +57,22 @@ public class Help {
 
     public void printHelpText() {
         final int maxLength = getMaxKeyLength();
-        System.out.println("Usage: ");
-        for (HelpItem helpItem : this.getRequired()) {
-            if (helpItem.getCli().required()) {
-                System.out.println('\t' + padRight(helpItem.getUsage(), maxLength) + '\t' + helpItem.getHelp());
+        final Iterable<HelpItem> requiredOptions = this.getRequired();
+        if (requiredOptions.iterator().hasNext()) {
+            System.out.println("Usage: ");
+            for (HelpItem helpItem : requiredOptions) {
+                if (helpItem.getCli().required()) {
+                    System.out.println('\t' + padRight(helpItem.getUsage(), maxLength) + '\t' + helpItem.getHelp());
+                }
             }
         }
-        System.out.println("Optional: ");
-        for (HelpItem helpItem : this.getOptional()) {
-            if (!helpItem.getCli().required()) {
-                System.out.println('\t' + padRight(helpItem.getUsage(), maxLength) + '\t' + helpItem.getHelp());
+        final Iterable<HelpItem> optionalOptions = this.getOptional();
+        if (optionalOptions.iterator().hasNext()) {
+            System.out.println("Optional: ");
+            for (HelpItem helpItem : optionalOptions) {
+                if (!helpItem.getCli().required()) {
+                    System.out.println('\t' + padRight(helpItem.getUsage(), maxLength) + '\t' + helpItem.getHelp());
+                }
             }
         }
     }

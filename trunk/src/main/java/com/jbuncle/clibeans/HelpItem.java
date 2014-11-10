@@ -28,18 +28,20 @@ package com.jbuncle.clibeans;
  */
 public class HelpItem {
 
-    private final CLI cli;
+    private final CLIOption cli;
     private final String usage;
     private final String help;
 
-    protected HelpItem(CLI cli) {
+    protected HelpItem(CLIOption cli) {
         this.cli = cli;
         final StringBuilder sb = new StringBuilder();
         sb.append("-");
         sb.append(cli.name());
-        if (!cli.alias().isEmpty()) {
-            sb.append(", -");
-            sb.append(cli.alias());
+        if (cli.alias().length > 0) {
+            for (String alias : cli.alias()) {
+                sb.append(", -");
+                sb.append(alias);
+            }
         }
         sb.append(" ");
         if (!cli.flag()) {
@@ -57,7 +59,7 @@ public class HelpItem {
         return help;
     }
 
-    public CLI getCli() {
+    public CLIOption getCli() {
         return cli;
     }
 

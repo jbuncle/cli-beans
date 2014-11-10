@@ -41,7 +41,7 @@ public class CommandLineParser<T extends Object> {
 
     private final Class<T> targetClass;
     private final Map<String, Method> annotatedMethods;
-    private final Map<String, CLI> annotations;
+    private final Map<String, CLIOption> annotations;
     private final Map<Class, PropertyEditor> propertyEditors;
     private final Map<String, String> aliases;
 
@@ -53,12 +53,14 @@ public class CommandLineParser<T extends Object> {
         this.aliases = new LinkedHashMap<>();
 
         for (final Method method : this.targetClass.getMethods()) {
-            if (method.isAnnotationPresent(CLI.class)) {
-                final CLI annotation = method.getAnnotation(CLI.class);
+            if (method.isAnnotationPresent(CLIOption.class)) {
+                final CLIOption annotation = method.getAnnotation(CLIOption.class);
                 this.annotatedMethods.put(annotation.name(), method);
                 this.annotations.put(annotation.name(), annotation);
-                if (!annotation.alias().isEmpty()) {
-                    this.aliases.put(annotation.alias(), annotation.name());
+                if (annotation.alias().length > 0) {
+                    for (String alias : annotation.alias()) {
+                        this.aliases.put(alias, annotation.name());
+                    }
                 }
             }
         }
@@ -66,7 +68,7 @@ public class CommandLineParser<T extends Object> {
 
     public Help getHelp() {
         final Help help = new Help();
-        for (CLI cli : annotations.values()) {
+        for (CLIOption cli : annotations.values()) {
             help.add(new HelpItem(cli));
         }
         return help;
@@ -75,9 +77,9 @@ public class CommandLineParser<T extends Object> {
     public Set<String> validate(final String[] args) {
         final Set<String> invalidOptions = new LinkedHashSet<>();
         final Map<String, String> optionsMap = getOptionsMap(args);
-        for (Entry<String, CLI> entry : annotations.entrySet()) {
+        for (Entry<String, CLIOption> entry : annotations.entrySet()) {
             //Loop annotations and do checks, maps annotation -> args
-            final CLI annotation = entry.getValue();
+            final CLIOption annotation = entry.getValue();
             final String annotationName = entry.getKey();
             if (annotation.required() && !optionsMap.containsKey(annotationName)) {
                 invalidOptions.add(annotationName);
@@ -112,7 +114,7 @@ public class CommandLineParser<T extends Object> {
                 if (annotatedMethods.containsKey(optionName)) {
                     //found an annotation for the option
                     final Method method = annotatedMethods.get(optionName);
-                    if (method.getAnnotation(CLI.class).flag()) {
+                    if (method.getAnnotation(CLIOption.class).flag()) {
                         //Flag, so treat as 'true'
                         method.invoke(targetInstance, true);
                     } else {
@@ -148,17 +150,26 @@ public class CommandLineParser<T extends Object> {
             //Loop through and find options (which are followed by values)
             final String arg = args[index];
             if (arg.startsWith("-")) {
-                //Remove the preceeding dash to get the option name
+
+                //Remove the preceeding dash
                 String optionName = arg.substring(1);
+
+                final String value;
+                if (arg.contains("=")) {
+                    //Handle option=argument pairs
+                    value = optionName.substring(optionName.indexOf("=") + 1);
+                    optionName = optionName.substring(0, optionName.indexOf("="));
+                } else if (index < args.length - 1 && !args[index + 1].startsWith("-")) {
+                    value = args[index + 1];
+                } else {
+                    value = null;
+                }
+
                 //Convert alias to real name
                 if (aliases.containsKey(optionName)) {
                     optionName = aliases.get(optionName);
                 }
-                if (index < args.length - 1 && !args[index + 1].startsWith("-")) {
-                    optionsMap.put(optionName, args[index + 1]);
-                } else {
-                    optionsMap.put(optionName, null);
-                }
+                optionsMap.put(optionName, value);
 
             }
         }
