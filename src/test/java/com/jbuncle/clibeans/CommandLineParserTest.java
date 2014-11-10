@@ -46,17 +46,22 @@ public class CommandLineParserTest {
         instance.getHelp().printHelpText();
 
         TestClass result = instance.parseArguments(args);
-        assertEquals(result.getMyProperty(), "Hello world");
-        assertEquals(result.isUppercase(), false);
+        assertEquals("Hello world", result.getMyProperty());
+        assertFalse(false);
 
         args = new String[]{"-myproperty", "Hello World 2", "-uppercase", "-requiredProperty"};
         result = instance.parseArguments(args);
-        assertEquals(result.getMyProperty(), "Hello World 2");
-        assertEquals(result.isUppercase(), true);
+        assertEquals("Hello World 2", result.getMyProperty());
+        assertTrue(result.isUppercase());
 
         args = new String[]{"-number", "1"};
         result = instance.parseArguments(args);
-        assertEquals(result.getNumericProperty(), 1);
+        assertEquals(1, result.getNumericProperty());
+
+        args = new String[]{"-myproperty=value"};
+        result = instance.parseArguments(args);
+        assertEquals("value", result.getMyProperty());
+
     }
 
     @Test
@@ -101,6 +106,12 @@ public class CommandLineParserTest {
 
         testClass = instance.parseArguments(new String[]{"-requiredProperty", "-a", "value"});
         assertEquals("value", testClass.getAliased());
+
+        CommandLineParser<AliasObject> testInstance = new CommandLineParser<>(AliasObject.class);
+        AliasObject testResult = testInstance.parseArguments(new String[]{"-als", "value"});
+        assertEquals("value", testResult.getAliases());
+        testResult = testInstance.parseArguments(new String[]{"-ali", "value"});
+        assertEquals("value", testResult.getAliases());
     }
 
     @Test
@@ -119,6 +130,21 @@ public class CommandLineParserTest {
         //Regex Test success
         result = instance.validate(new String[]{"-requiredProperty", "-a", "-number", "1"});
         assertEquals(0, result.size());
+
+    }
+
+    public static class AliasObject {
+
+        private String aliases;
+
+        public String getAliases() {
+            return aliases;
+        }
+
+        @CLIOption(name = "aliases", alias = {"als", "ali"})
+        public void setAliases(String aliases) {
+            this.aliases = aliases;
+        }
     }
 
     public static class TestClass {
@@ -134,7 +160,7 @@ public class CommandLineParserTest {
             return myProperty;
         }
 
-        @CLI(name = "myproperty", description = "Basic property")
+        @CLIOption(name = "myproperty", description = "Basic property")
         public void setMyProperty(String myProperty) {
             this.myProperty = myProperty;
         }
@@ -143,7 +169,7 @@ public class CommandLineParserTest {
             return uppercase;
         }
 
-        @CLI(name = "uppercase", description = "Basic flag", flag = true)
+        @CLIOption(name = "uppercase", description = "Basic flag", flag = true)
         public void setUppercase(boolean uppercase) {
             this.uppercase = uppercase;
         }
@@ -152,7 +178,7 @@ public class CommandLineParserTest {
             return requiredProperty;
         }
 
-        @CLI(name = "requiredProperty", description = "Basic required property", flag = true, required = true)
+        @CLIOption(name = "requiredProperty", description = "Basic required property", flag = true, required = true)
         public void setRequiredProperty(boolean requiredProperty) {
             this.requiredProperty = requiredProperty;
         }
@@ -161,7 +187,7 @@ public class CommandLineParserTest {
             return numericProperty;
         }
 
-        @CLI(name = "number", regex = "[0-9]*")
+        @CLIOption(name = "number", regex = "[0-9]*")
         public void setNumericProperty(int numericProperty) {
             this.numericProperty = numericProperty;
         }
@@ -170,7 +196,7 @@ public class CommandLineParserTest {
             return date;
         }
 
-        @CLI(name = "date")
+        @CLIOption(name = "date")
         public void setDate(Date date) {
             this.date = date;
         }
@@ -179,7 +205,7 @@ public class CommandLineParserTest {
             return aliased;
         }
 
-        @CLI(name = "aliased", alias = "a", required = true)
+        @CLIOption(name = "aliased", alias = "a", required = true)
         public void setAliased(String aliased) {
             this.aliased = aliased;
         }

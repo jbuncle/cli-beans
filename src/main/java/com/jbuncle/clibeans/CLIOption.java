@@ -33,7 +33,7 @@ import java.lang.annotation.Target;
  */
 @Target(value = ElementType.METHOD)
 @Retention(value = RetentionPolicy.RUNTIME)
-public @interface CLI {
+public @interface CLIOption {
 
     /**
      * The name of the CLI option, which will be prefixed with a dash (-)
@@ -43,13 +43,43 @@ public @interface CLI {
      */
     public String name();
 
+    /**
+     * Whether or not the option is a flag, that is it doesn't take an option
+     * argument.
+     * <br />
+     * If false the CLI option will expect an argument in the format of
+     * -<i>option</i> <i>option_argument</i>, seperated by a space
+     *
+     * @return whether or not the CLI option is a flag
+     */
     public boolean flag() default false;
 
+    /**
+     * Used for validation to check if the CLI option is required
+     *
+     * @return whether or not the CLI option is required
+     */
     public boolean required() default false;
 
+    /**
+     * A description of the CLI option, used for creating help text
+     *
+     * @return a short description of the CLI option
+     */
     public String description() default "";
 
+    /**
+     * A regular expression used to validate the CLI option argument against.
+     *
+     * @return a regular expression to match valid CLI option arguments
+     */
     public String regex() default ".*";
 
-    public String alias() default "";
+    /**
+     * An alternative name for the CLI Option, which will be prefixed with a
+     * dash (-) symbol. This could be a short or long name for the option.
+     *
+     * @return the CLI Option alias
+     */
+    public String[] alias() default {};
 }
