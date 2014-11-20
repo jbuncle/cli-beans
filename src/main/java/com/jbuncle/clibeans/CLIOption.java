@@ -82,4 +82,11 @@ public @interface CLIOption {
      * @return the CLI Option alias
      */
     public String[] alias() default {};
+
+    /**
+     * Default value for CLI Option, expressed as a string
+     *
+     * @return the default string value
+     */
+    public String defaultValue() default "";
 }
