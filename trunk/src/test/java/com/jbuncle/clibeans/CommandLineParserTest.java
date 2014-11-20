@@ -133,6 +133,32 @@ public class CommandLineParserTest {
 
     }
 
+    @Test
+    public void testDefault() {
+        System.out.println("default");
+        CommandLineParser<DefaultObject> instance = new CommandLineParser<>(DefaultObject.class);
+        DefaultObject objectInstance = instance.parseArguments(new String[]{""});
+        assertEquals("test", objectInstance.getDefaultedValue());
+        objectInstance = instance.parseArguments(new String[]{"-defaultedValue", "test2"});
+        assertEquals("test2", objectInstance.getDefaultedValue());
+
+    }
+
+    public static class DefaultObject {
+
+        private String defaultedValue;
+
+        public String getDefaultedValue() {
+            return defaultedValue;
+        }
+
+        @CLIOption(name = "defaultedValue", defaultValue = "test")
+        public void setDefaultedValue(String defaultedValue) {
+            this.defaultedValue = defaultedValue;
+        }
+
+    }
+
     public static class AliasObject {
 
         private String aliases;

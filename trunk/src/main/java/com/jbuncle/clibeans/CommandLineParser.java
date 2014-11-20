@@ -22,6 +22,8 @@
  */
 package com.jbuncle.clibeans;
 
+import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -54,7 +56,7 @@ public class CommandLineParser<T extends Object> {
 
         for (final Method method : this.targetClass.getMethods()) {
             if (method.isAnnotationPresent(CLIOption.class)) {
-                final CLIOption annotation = method.getAnnotation(CLIOption.class);
+                final CLIOption annotation = getAnnotation(method);
                 this.annotatedMethods.put(annotation.name(), method);
                 this.annotations.put(annotation.name(), annotation);
                 if (annotation.alias().length > 0) {
@@ -108,46 +110,68 @@ public class CommandLineParser<T extends Object> {
             final T targetInstance = targetClass.newInstance();
 
             final Map<String, String> argsMap = getOptionsMap(args);
-            for (Entry<String, String> entry : argsMap.entrySet()) {
-                String optionName = entry.getKey();
-                //Lookup for an annotation with the same option name
-                if (annotatedMethods.containsKey(optionName)) {
-                    //found an annotation for the option
-                    final Method method = annotatedMethods.get(optionName);
-                    if (method.getAnnotation(CLIOption.class).flag()) {
-                        //Flag, so treat as 'true'
-                        method.invoke(targetInstance, true);
-                    } else {
-                        /* 
-                         * Convert the given option value (a string) to the 
-                         * required basic type (as determined by the methods 
-                         * argument type)
-                         */
-                        final String value = entry.getValue();
-                        final Class<?> parameterType = method.getParameterTypes()[0];
-                        final Object valueObject;
-                        if (this.propertyEditors.containsKey(parameterType)) {
-                            valueObject = this.propertyEditors.get(parameterType).getObject(value);
-                        } else {
-                            valueObject = stringToType(parameterType, value);
 
-                        }
-                        //Invoke the method on the Object instance using the converted value
-                        method.invoke(targetInstance, valueObject);
-                    }
-
+            for (Entry<String, Method> annotatedMethodEntry : annotatedMethods.entrySet()) {
+                final String optionName = annotatedMethodEntry.getKey();
+                if (argsMap.containsKey(optionName)) {
+                    final String value = argsMap.get(optionName);
+                    invokeAnnotatedMethod(optionName, targetInstance, value);
+                } else if (!hasDefault(optionName)) {
+                    invokeAnnotatedMethod(optionName, targetInstance, getDefault(optionName));
                 }
             }
+
             return targetInstance;
         } catch (ReflectiveOperationException ex) {
             throw new IllegalArgumentException(Arrays.toString(args), ex);
         }
     }
 
+    private boolean hasDefault(final String optionName) {
+        return getAnnotation(optionName).defaultValue().isEmpty();
+    }
+
+    private String getDefault(final String optionName) {
+        return getAnnotation(optionName).defaultValue();
+    }
+
+    private CLIOption getAnnotation(final String optionName) {
+        return getAnnotation(annotatedMethods.get(optionName));
+    }
+
+    private void invokeAnnotatedMethod(String optionName, final T targetInstance, final String value) throws InvocationTargetException, IllegalAccessException, IllegalArgumentException {
+        //found an annotation for the option
+        final Method method = annotatedMethods.get(optionName);
+        if (getAnnotation(method).flag()) {
+            //Flag, so treat as 'true'
+            method.invoke(targetInstance, true);
+        } else {
+            /*
+             * Convert the given option value (a string) to the
+             * required basic type (as determined by the methods
+             * argument type)
+             */
+            final Class<?> parameterType = method.getParameterTypes()[0];
+            final Object valueObject;
+            if (this.propertyEditors.containsKey(parameterType)) {
+                valueObject = this.propertyEditors.get(parameterType).getObject(value);
+            } else {
+                valueObject = stringToType(parameterType, value);
+
+            }
+            //Invoke the method on the Object instance using the converted value
+            method.invoke(targetInstance, valueObject);
+        }
+    }
+
+    private static CLIOption getAnnotation(final Method method) {
+        return method.getAnnotation(CLIOption.class);
+    }
+
     private Map<String, String> getOptionsMap(String[] args) {
         final Map<String, String> optionsMap = new LinkedHashMap<>();
         for (int index = 0; index < args.length; index++) {
-            //Loop through and find options (which are followed by values)
+            //Loop through and find options (which may be followed by values)
             final String arg = args[index];
             if (arg.startsWith("-")) {
 
@@ -156,12 +180,14 @@ public class CommandLineParser<T extends Object> {
 
                 final String value;
                 if (arg.contains("=")) {
-                    //Handle option=argument pairs
+                    //Handle -option=argument pairs
                     value = optionName.substring(optionName.indexOf("=") + 1);
                     optionName = optionName.substring(0, optionName.indexOf("="));
                 } else if (index < args.length - 1 && !args[index + 1].startsWith("-")) {
+                    //Handle space separated '-option argument' pairs
                     value = args[index + 1];
                 } else {
+                    //Treat as flag
                     value = null;
                 }
 
@@ -204,6 +230,9 @@ public class CommandLineParser<T extends Object> {
         }
         if (Double.class == targetType || Double.TYPE == targetType) {
             return Double.parseDouble(value);
+        }
+        if (File.class == targetType) {
+            return new File(value);
         }
         return value;
     }
