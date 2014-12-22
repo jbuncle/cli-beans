@@ -48,7 +48,16 @@ public class HelpItem {
             sb.append("<argument>");
         }
         this.usage = sb.toString();
-        this.help = cli.description();
+        if (!cli.defaultValue().isEmpty()) {
+            String helpDescription = "default: " + cli.defaultValue();
+            if (!cli.description().isEmpty()) {
+                helpDescription += "," + cli.description();
+            }
+            this.help = helpDescription;
+
+        } else {
+            this.help = cli.description();
+        }
     }
 
     public String getUsage() {
