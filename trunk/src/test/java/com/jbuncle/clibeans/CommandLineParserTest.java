@@ -22,9 +22,18 @@
  */
 package com.jbuncle.clibeans;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import org.junit.Test;
 import static org.junit.Assert.*;

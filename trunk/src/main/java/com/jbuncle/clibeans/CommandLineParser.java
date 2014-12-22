@@ -22,8 +22,11 @@
  */
 package com.jbuncle.clibeans;
 
+import java.io.BufferedReader;
+import java.io.Console;
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -78,23 +81,122 @@ public class CommandLineParser<T extends Object> {
 
     public Set<String> validate(final String[] args) {
         final Set<String> invalidOptions = new LinkedHashSet<>();
-        final Map<String, String> optionsMap = getOptionsMap(args);
+        final Map<String, String> cliOptions = getOptionsMap(args);
+
         for (Entry<String, CLIOption> entry : annotations.entrySet()) {
             //Loop annotations and do checks, maps annotation -> args
             final CLIOption annotation = entry.getValue();
-            final String annotationName = entry.getKey();
-            if (annotation.required() && !optionsMap.containsKey(annotationName)) {
-                invalidOptions.add(annotationName);
-            } else if (optionsMap.containsKey(annotationName) && optionsMap.get(annotationName) != null) {
-                //Check regex
-                final String regex = annotation.regex();
-                if (optionsMap.containsKey(annotationName) && !optionsMap.get(annotationName).matches(regex)) {
-                    invalidOptions.add(entry.getKey());
+            final String cliOption = entry.getKey();
+            final String cliOptionValue = cliOptions.get(cliOption);
+            final boolean hasCliOption = cliOptions.containsKey(cliOption);
+
+            if (annotation.required() && !hasCliOption) {
+                invalidOptions.add(cliOption);
+            } else if (hasCliOption && cliOptionValue != null) {
+                if (!validateValue(annotation, cliOptionValue)) {
+                    invalidOptions.add(cliOption);
                 }
             }
 
         }
         return invalidOptions;
+    }
+
+    private boolean validateValue(final CLIOption annotation, final String cliOptionValue) {
+        //Check regex
+        if (annotation.required() && (cliOptionValue == null || cliOptionValue.isEmpty())) {
+            return false;
+        } else if (cliOptionValue != null && !cliOptionValue.isEmpty()) {
+            final String regex = annotation.regex();
+            return cliOptionValue.matches(regex);
+        }
+        return true;
+    }
+
+    public T interactive() {
+        try {
+            //Create new instance to load options into
+            final T targetInstance = targetClass.newInstance();
+            //Load system in
+            //Loop annotations and request from text entry
+            for (final CLIOption cliOption : annotations.values()) {
+                //Print description
+                boolean isValid = false;
+                while (!isValid) {
+                    String value = getValueFromConsolse(cliOption);
+                    isValid = validateValue(cliOption, value);
+                    if (isValid) {
+                        if (!value.isEmpty()) {
+                            invokeAnnotatedMethod(cliOption.name(), targetInstance, value);
+                        } else {
+                            invokeAnnotationDefault(cliOption.name(), targetInstance);
+                        }
+                    }
+                }
+
+            }
+            return targetInstance;
+        } catch (ReflectiveOperationException | IllegalArgumentException | IOException ex) {
+            throw new IllegalArgumentException(ex);
+        }
+    }
+
+    private String getValueFromConsolse(final CLIOption cliOption) throws IOException {
+        final String description;
+        if (cliOption.description().isEmpty()) {
+            description = cliOption.name();
+        } else {
+            description = cliOption.description();
+        }
+        final String defaultText;
+        if (!cliOption.defaultValue().isEmpty()) {
+            defaultText = " (default " + cliOption.defaultValue() + ")";
+        } else {
+            defaultText = "";
+        }
+        if (cliOption.name().trim().toLowerCase().contains("password")
+                || cliOption.name().trim().toLowerCase().contains("secret")) {
+            return new String(readPassword(description + defaultText + ": "));
+        } else {
+            return readLine(description + defaultText + ": ");
+        }
+    }
+
+    private String readLine(String format, Object... args) throws IOException {
+        if (System.console() != null) {
+            return System.console().readLine(format, args);
+        }
+        System.out.print(String.format(format, args));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(
+                System.in));
+        return reader.readLine();
+    }
+
+    private char[] readPassword(String format, Object... args)
+            throws IOException {
+        if (System.console() != null) {
+            return System.console().readPassword(format, args);
+        }
+        return this.readLine(format, args).toCharArray();
+    }
+
+    private String getValueFromSystemIn(final CLIOption cliOption) throws IOException {
+        final String description;
+        if (cliOption.description().isEmpty()) {
+            description = cliOption.name();
+        } else {
+            description = cliOption.description();
+        }
+        final String defaultText;
+        if (!cliOption.defaultValue().isEmpty()) {
+            defaultText = " (default " + cliOption.defaultValue() + ")";
+        } else {
+            defaultText = "";
+        }
+        System.out.print(description + defaultText + ": ");
+        final BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        final String value = br.readLine();
+        return value;
     }
 
     /**
@@ -117,7 +219,7 @@ public class CommandLineParser<T extends Object> {
                     final String value = argsMap.get(optionName);
                     invokeAnnotatedMethod(optionName, targetInstance, value);
                 } else if (!hasDefault(optionName)) {
-                    invokeAnnotatedMethod(optionName, targetInstance, getDefault(optionName));
+                    invokeAnnotationDefault(optionName, targetInstance);
                 }
             }
 
@@ -125,6 +227,10 @@ public class CommandLineParser<T extends Object> {
         } catch (ReflectiveOperationException ex) {
             throw new IllegalArgumentException(Arrays.toString(args), ex);
         }
+    }
+
+    public void invokeAnnotationDefault(String optionName, T targetInstance) throws ReflectiveOperationException {
+        invokeAnnotatedMethod(optionName, targetInstance, getDefault(optionName));
     }
 
     private boolean hasDefault(final String optionName) {
@@ -139,7 +245,7 @@ public class CommandLineParser<T extends Object> {
         return getAnnotation(annotatedMethods.get(optionName));
     }
 
-    private void invokeAnnotatedMethod(String optionName, final T targetInstance, final String value) throws InvocationTargetException, IllegalAccessException, IllegalArgumentException {
+    private void invokeAnnotatedMethod(String optionName, final T targetInstance, final String value) throws ReflectiveOperationException {
         //found an annotation for the option
         final Method method = annotatedMethods.get(optionName);
         if (getAnnotation(method).flag()) {
