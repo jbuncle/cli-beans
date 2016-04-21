@@ -36,19 +36,17 @@ import java.lang.annotation.Target;
 public @interface CLIOption {
 
     /**
-     * The name of the CLI option, which will be prefixed with a dash (-)
-     * symbol.
+     * The name of the CLI option, which will be prefixed with a dash (-) symbol.
      *
      * @return the name of the option
      */
     public String name();
 
     /**
-     * Whether or not the option is a flag, that is it doesn't take an option
-     * argument.
+     * Whether or not the option is a flag, that is it doesn't take an option argument.
      * <br />
-     * If false the CLI option will expect an argument in the format of
-     * -<i>option</i> <i>option_argument</i>, seperated by a space
+     * If false the CLI option will expect an argument in the format of -<i>option</i> <i>option_argument</i>, seperated
+     * by a space
      *
      * @return whether or not the CLI option is a flag
      */
@@ -76,8 +74,8 @@ public @interface CLIOption {
     public String regex() default ".*";
 
     /**
-     * An alternative name for the CLI Option, which will be prefixed with a
-     * dash (-) symbol. This could be a short or long name for the option.
+     * An alternative name for the CLI Option, which will be prefixed with a dash (-) symbol. This could be a short or
+     * long name for the option.
      *
      * @return the CLI Option alias
      */

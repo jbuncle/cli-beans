@@ -30,5 +30,5 @@ package com.jbuncle.clibeans;
 public interface PropertyEditor<T> {
 
     public T getObject(String string);
-    
+
 }

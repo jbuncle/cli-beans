@@ -22,9 +22,8 @@
  */
 package com.jbuncle.clibeans;
 
+import static com.jbuncle.clibeans.Utils.parseCliOptions;
 import java.io.BufferedReader;
-import java.io.Console;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
@@ -36,8 +35,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 /**
- * Maps command line arguments to a given object annotated methods. CLI
- * arguments should be prefixed with a dash (-) symbol
+ * Maps command line arguments to a given object annotated methods. CLI arguments should be prefixed with a dash (-)
+ * symbol
  *
  * @author James Buncle
  * @param <T>
@@ -50,7 +49,7 @@ public class CommandLineParser<T extends Object> {
     private final Map<Class, PropertyEditor> propertyEditors;
     private final Map<String, String> aliases;
 
-    public CommandLineParser(Class<T> targetClass) {
+    public CommandLineParser(final Class<T> targetClass) {
         this.targetClass = targetClass;
         this.annotatedMethods = new LinkedHashMap<>();
         this.annotations = new LinkedHashMap<>();
@@ -123,7 +122,7 @@ public class CommandLineParser<T extends Object> {
                 //Print description
                 boolean isValid = false;
                 while (!isValid) {
-                    String value = getValueFromConsolse(cliOption);
+                    String value = getValueFromConsole(cliOption);
                     isValid = validateValue(cliOption, value);
                     if (isValid) {
                         if (!value.isEmpty()) {
@@ -141,7 +140,7 @@ public class CommandLineParser<T extends Object> {
         }
     }
 
-    private String getValueFromConsolse(final CLIOption cliOption) throws IOException {
+    private String getValueFromConsole(final CLIOption cliOption) throws IOException {
         final String description;
         if (cliOption.description().isEmpty()) {
             description = cliOption.name();
@@ -156,28 +155,10 @@ public class CommandLineParser<T extends Object> {
         }
         if (cliOption.name().trim().toLowerCase().contains("password")
                 || cliOption.name().trim().toLowerCase().contains("secret")) {
-            return new String(readPassword(description + defaultText + ": "));
+            return new String(Utils.readPassword(description + defaultText + ": "));
         } else {
-            return readLine(description + defaultText + ": ");
+            return Utils.readLine(description + defaultText + ": ");
         }
-    }
-
-    private String readLine(String format, Object... args) throws IOException {
-        if (System.console() != null) {
-            return System.console().readLine(format, args);
-        }
-        System.out.print(String.format(format, args));
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
-                System.in));
-        return reader.readLine();
-    }
-
-    private char[] readPassword(String format, Object... args)
-            throws IOException {
-        if (System.console() != null) {
-            return System.console().readPassword(format, args);
-        }
-        return this.readLine(format, args).toCharArray();
     }
 
     private String getValueFromSystemIn(final CLIOption cliOption) throws IOException {
@@ -203,8 +184,7 @@ public class CommandLineParser<T extends Object> {
      * Map the given argument array to a new instance of the target class
      *
      * @param args
-     * @return a new object instance of the target class, with property set
-     * based on the arguments provided
+     * @return a new object instance of the target class, with property set based on the arguments provided
      */
     public T parseArguments(String[] args) {
         try {
@@ -262,8 +242,7 @@ public class CommandLineParser<T extends Object> {
             if (this.propertyEditors.containsKey(parameterType)) {
                 valueObject = this.propertyEditors.get(parameterType).getObject(value);
             } else {
-                valueObject = stringToType(parameterType, value);
-
+                valueObject = Utils.stringToType(parameterType, value);
             }
             //Invoke the method on the Object instance using the converted value
             method.invoke(targetInstance, valueObject);
@@ -274,72 +253,26 @@ public class CommandLineParser<T extends Object> {
         return method.getAnnotation(CLIOption.class);
     }
 
-    private Map<String, String> getOptionsMap(String[] args) {
-        final Map<String, String> optionsMap = new LinkedHashMap<>();
-        for (int index = 0; index < args.length; index++) {
-            //Loop through and find options (which may be followed by values)
-            final String arg = args[index];
-            if (arg.startsWith("-")) {
-
-                //Remove the preceeding dash
-                String optionName = arg.substring(1);
-
-                final String value;
-                if (arg.contains("=")) {
-                    //Handle -option=argument pairs
-                    value = optionName.substring(optionName.indexOf("=") + 1);
-                    optionName = optionName.substring(0, optionName.indexOf("="));
-                } else if (index < args.length - 1 && !args[index + 1].startsWith("-")) {
-                    //Handle space separated '-option argument' pairs
-                    value = args[index + 1];
-                } else {
-                    //Treat as flag
-                    value = null;
-                }
-
-                //Convert alias to real name
-                if (aliases.containsKey(optionName)) {
-                    optionName = aliases.get(optionName);
-                }
-                optionsMap.put(optionName, value);
-
+    /**
+     * Parse CLI arguments into key-value pairs.
+     *
+     * @param args
+     * @return
+     */
+    private Map<String, String> getOptionsMap(final String[] args) {
+        final Map<String, String> optionsMap = parseCliOptions(args);
+        // Cleanup aliased
+        for (final Entry<String, String> alias : aliases.entrySet()) {
+            if (optionsMap.containsKey(alias.getKey())) {
+                final String value = optionsMap.remove(alias.getKey());
+                optionsMap.put(alias.getValue(), value);
             }
         }
         return optionsMap;
     }
 
-    public final <T> void registerPropertyEditor(Class<T> clazz, PropertyEditor<T> propertyEditor) {
+    public final <T> void registerPropertyEditor(final Class<T> clazz, final PropertyEditor<T> propertyEditor) {
         this.propertyEditors.put(clazz, propertyEditor);
     }
 
-    private static Object stringToType(
-            final Class<?> targetType,
-            final String value) {
-        //Adapted from http://stackoverflow.com/questions/13943550/how-to-convert-from-string-to-a-primitive-type-or-standard-java-wrapper-types
-        if (Boolean.class == targetType || Boolean.TYPE == targetType) {
-            return Boolean.parseBoolean(value);
-        }
-        if (Byte.class == targetType || Byte.TYPE == targetType) {
-            return Byte.parseByte(value);
-        }
-        if (Short.class == targetType || Short.TYPE == targetType) {
-            return Short.parseShort(value);
-        }
-        if (Integer.class == targetType || Integer.TYPE == targetType) {
-            return Integer.parseInt(value);
-        }
-        if (Long.class == targetType || Long.TYPE == targetType) {
-            return Long.parseLong(value);
-        }
-        if (Float.class == targetType || Float.TYPE == targetType) {
-            return Float.parseFloat(value);
-        }
-        if (Double.class == targetType || Double.TYPE == targetType) {
-            return Double.parseDouble(value);
-        }
-        if (File.class == targetType) {
-            return new File(value);
-        }
-        return value;
-    }
 }
